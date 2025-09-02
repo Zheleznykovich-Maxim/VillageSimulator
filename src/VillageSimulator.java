@@ -2,16 +2,19 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class VillageSimulator {
     public static void main(String[] args) throws InterruptedException {
         List<Villager> villagers = new CopyOnWriteArrayList<>();
-        Villager starter = new Villager();
+        ExecutorService executor = Executors.newCachedThreadPool();
+        Villager starter = new Villager(executor);
         villagers.add(starter);
-
-        Thread firstThread = new Thread(starter);
-        firstThread.start();
+        executor.submit(starter);
+//        Thread firstThread = new Thread(starter);
+//        firstThread.start();
 
         for (int day = 1; day <= 100; day++) {
             System.out.println("--- День " + day + " ---");
@@ -31,10 +34,12 @@ public class VillageSimulator {
                 Thread.currentThread().interrupt();
             }
         }
-        firstThread.interrupt();
-        firstThread.join();
         System.out.println("Симуляция завершена \n");
         printVillagersStatistic(villagers);
+        executor.shutdown();
+//        firstThread.interrupt();
+//        firstThread.join();
+
     }
 
     public static int countAliveVillagers(Villager villager) {

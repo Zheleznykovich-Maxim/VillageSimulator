@@ -1,6 +1,7 @@
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 
 public class Villager implements Runnable {
     private static int counter = 1;
@@ -11,8 +12,9 @@ public class Villager implements Runnable {
     private boolean alive;
     private Random random;
     private List<Villager> population;
+    private ExecutorService executor;
 
-    public Villager() {
+    public Villager(ExecutorService executor) {
         this.id = counter++;
         this.age = 0;
         this.health = 100;
@@ -21,21 +23,23 @@ public class Villager implements Runnable {
 
         this.random = new Random();
         this.population = new CopyOnWriteArrayList<>();
+        this.executor = executor;
     }
 
-    public Villager(List<Villager> population) {
-        this.id = counter++;
-        this.age = 0;
-        this.health = 100;
-        this.food = 50;
-        this.alive = true;
-        this.random = new Random();
-        this.population = population;
-    }
+//    public Villager(List<Villager> population) {
+//        this.id = counter++;
+//        this.age = 0;
+//        this.health = 100;
+//        this.food = 50;
+//        this.alive = true;
+//        this.random = new Random();
+//        this.population = population;
+//    }
 
     @Override
     public void run() {
-        while (alive) {
+
+        while (alive && !Thread.currentThread().isInterrupted()) {
             liveOneDay();
             try {
                 Thread.sleep(500);
@@ -71,9 +75,10 @@ public class Villager implements Runnable {
         }
 
         if (canReproduce()) {
-            Villager child = new Villager();
+            Villager child = new Villager(executor);
             population.add(child);
-            new Thread(child).start();
+            executor.submit(child);
+//            new Thread(child).start();
             System.out.println("У жителя " + id + " родился новый житель!");
         }
     }
