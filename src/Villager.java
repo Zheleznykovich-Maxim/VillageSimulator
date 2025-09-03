@@ -1,18 +1,19 @@
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 
 public class Villager implements Runnable {
     private static int counter = 1;
-    private int id;
+    private final int id;
     private int age;
     private int health;
     private int food;
     private boolean alive;
-    private Random random;
+    private final Random random;
     private List<Villager> population;
-    private ExecutorService executor;
+    private final ExecutorService executor;
 
     public Villager(ExecutorService executor) {
         this.id = counter++;
@@ -22,19 +23,9 @@ public class Villager implements Runnable {
         this.alive = true;
 
         this.random = new Random();
-        this.population = new CopyOnWriteArrayList<>();
+        this.population = Collections.synchronizedList(new ArrayList<>());
         this.executor = executor;
     }
-
-//    public Villager(List<Villager> population) {
-//        this.id = counter++;
-//        this.age = 0;
-//        this.health = 100;
-//        this.food = 50;
-//        this.alive = true;
-//        this.random = new Random();
-//        this.population = population;
-//    }
 
     @Override
     public void run() {
@@ -42,7 +33,12 @@ public class Villager implements Runnable {
         while (alive && !Thread.currentThread().isInterrupted()) {
             liveOneDay();
             try {
-                Thread.sleep(500);
+                for (int i = 0; i < 5; i++) {
+                    Thread.sleep(100);
+                    if (Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
@@ -78,13 +74,12 @@ public class Villager implements Runnable {
             Villager child = new Villager(executor);
             population.add(child);
             executor.submit(child);
-//            new Thread(child).start();
             System.out.println("У жителя " + id + " родился новый житель!");
         }
     }
 
     private boolean canReproduce() {
-        return alive && age > 18 && age < 50 && random.nextInt(100) < 5;
+        return alive && age >= 18 && age <= 50 && random.nextInt(100) < 5;
     }
 
     public boolean isAlive() {
