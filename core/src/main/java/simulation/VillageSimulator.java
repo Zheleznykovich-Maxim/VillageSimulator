@@ -1,5 +1,7 @@
 package simulation;
 
+import events.EventDispatcher;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -8,9 +10,17 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class VillageSimulator {
-    public static void main(String[] args) {
-        ExecutorService executor = Executors.newCachedThreadPool();
-        Villager starter = new Villager(executor);
+
+    private final EventDispatcher dispatcher;
+    private final ExecutorService executor;
+
+    public VillageSimulator(EventDispatcher dispatcher) {
+        this.dispatcher = dispatcher;
+        this.executor = Executors.newCachedThreadPool();
+    }
+
+    public void start() {
+        Villager starter = new Villager(executor, dispatcher);
         executor.submit(starter);
 
         for (int day = 1; day <= 100; day++) {
@@ -74,7 +84,7 @@ public class VillageSimulator {
 
         deadVillagers.forEach(deadVillager -> {
             System.out.println("Житель " + deadVillager.getId() + " умер в возрасте " + deadVillager.getAge());
-            System.out.println("Количество детей: " + (deadVillager.getPopulationSize()));
+            System.out.println("Количество детей: " + (deadVillager.getPopulation().size()));
             String children = deadVillager.getPopulation().stream()
                     .map(v -> "Житель " + v.getId())
                     .collect(Collectors.joining(", "));
