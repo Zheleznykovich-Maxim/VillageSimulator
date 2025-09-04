@@ -1,6 +1,8 @@
 package simulation;
 
 import events.EventDispatcher;
+import events.VillagerEvent;
+import events.VillagerEventType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,6 +30,9 @@ public class VillageSimulator {
             int villagersSize = countAliveVillagers(starter);
             System.out.println("Население деревни: " + villagersSize);
 
+            dispatcher.dispath(
+                    new VillagerEvent(null, VillagerEventType.DAY_PASSED, villagersSize)
+            );
             if (villagersSize < 1) {
                 System.out.println("Все жители вымерли. Симуляция окончена.");
                 break;

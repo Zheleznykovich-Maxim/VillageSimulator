@@ -1,6 +1,7 @@
 package org.example.javafxui;
 
 import events.EventDispatcher;
+import events.VillagerEventType;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -39,12 +40,42 @@ public class MainApp extends Application {
         tableView.getColumns().addAll(idColumn, ageColumn, statusColumn);
 
         NumberAxis xAxis = new NumberAxis();
-        NumberAxis yAxis = new NumberAxis();
         xAxis.setLabel("Day");
-        yAxis.setLabel("Population");
+        xAxis.setMinorTickCount(0);
+        xAxis.setTickLabelFormatter(new NumberAxis.DefaultFormatter(xAxis) {
+            @Override
+            public String toString(Number object) {
+                double value = object.doubleValue();
+                if (value == Math.floor(value)) {
+                    return String.valueOf((int) value); // целое → выводим
+                } else {
+                    return ""; // дробное → скрываем
+                }
+            }
+        });
+        xAxis.setLabel("Day");
+        xAxis.setForceZeroInRange(false);
+
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setLabel("Alive Villagers");
+        yAxis.setTickUnit(1);
+        yAxis.setMinorTickCount(0);
+        yAxis.setForceZeroInRange(false);
+        yAxis.setTickLabelFormatter(new NumberAxis.DefaultFormatter(yAxis) {
+            @Override
+            public String toString(Number object) {
+                double value = object.doubleValue();
+                if (value == Math.floor(value)) {
+                    return String.valueOf((int) value); // целое → выводим
+                } else {
+                    return ""; // дробное → скрываем
+                }
+            }
+        });
 
         LineChart<Number, Number> lineChart = new LineChart<>(xAxis, yAxis);
         lineChart.getData().add(populationSeries);
+        lineChart.lookup(".chart-series-line").setStyle("-fx-stroke-width: 2px;");
         populationSeries.setName("Population");
 
         BorderPane root = new BorderPane();
@@ -63,20 +94,38 @@ public class MainApp extends Application {
         EventDispatcher dispatcher = new EventDispatcher();
 
         dispatcher.registerListener(event -> Platform.runLater(() -> {
-            VillagerData data = new VillagerData(event.getVillager().getId(), event.getVillager().getAge(), event.getVillager().isAlive() ? "Alive" : "Dead");
-            villagerList.removeIf(v -> v.getId() == data.getId());
-            villagerList.add(data);
+            if (event.getType() == VillagerEventType.DAY_PASSED) {
+                dayCounter++;
+                int aliveCount = event.getValue();
+                XYChart.Data<Number, Number> point = new XYChart.Data<>(dayCounter, aliveCount);
+                point.nodeProperty().addListener((obs, oldNode, newNode) -> {
+                    if (newNode != null) {
+                        newNode.setStyle(
+                                "-fx-background-color: E66E1DFF; " + // заливка
+                                "-fx-background-radius: 2px; " +   // радиус кружка
+                                "-fx-padding: 2px;"             // размер (чем меньше padding, тем меньше точка)
 
-            dayCounter++;
-            populationSeries.getData().add(new XYChart.Data<>(dayCounter, villagerList.size()));
+                        );
+                    }
+                });
+
+                populationSeries.getData().add(point);
+
+            } else {
+                VillagerData data = new VillagerData(
+                        event.getVillager().getId(),
+                        event.getVillager().getAge(),
+                        event.getVillager().isAlive() ? "Alive" : "Dead"
+                );
+
+                villagerList.removeIf(v -> v.getId() == data.getId());
+                villagerList.add(data);
+            }
 
         }));
 
         VillageSimulator simulator = new VillageSimulator(dispatcher);
         new Thread(simulator::start).start();
-//        ExecutorService executor = Executors.newCachedThreadPool();
-//        Villager starter = new Villager(executor, dispatcher);
-//        executor.submit(starter);
     }
 
     public static void main(String[] args) {
