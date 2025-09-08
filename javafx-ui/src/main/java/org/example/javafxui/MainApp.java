@@ -1,7 +1,6 @@
 package org.example.javafxui;
 
 import events.EventDispatcher;
-import events.VillagerEventType;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -10,18 +9,29 @@ import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
+import javafx.scene.control.Label;
+import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import simulation.VillageSimulator;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainApp extends Application {
 
     private ObservableList<VillagerData> villagerList = FXCollections.observableArrayList();
     private XYChart.Series<Number, Number> populationSeries = new XYChart.Series<>();
     private int dayCounter = 0;
+
+    private Pane genealogyPane;
+    private VillagerData rootVillager;
+    private Map<Integer, VillagerData> villagerMap = new HashMap<>(); // по id
 
     @Override
     public void start(Stage primaryStage) {
@@ -79,10 +89,22 @@ public class MainApp extends Application {
         populationSeries.setName("Population");
 
         BorderPane root = new BorderPane();
-        root.setTop(tableView);
-        root.setCenter(lineChart);
 
-        Scene scene = new Scene(root, 800, 600);
+        SplitPane splitPane = new SplitPane();
+        tableView.setPrefWidth(350);
+
+        genealogyPane = new Pane();
+        genealogyPane.setPrefWidth(550);
+
+        // добавляем в SplitPane
+        splitPane.getItems().addAll(tableView, genealogyPane);
+        splitPane.setDividerPositions(0.3); // 30% слева, 70% справа
+
+        root.setCenter(splitPane);
+        root.setBottom(lineChart);
+        lineChart.setPrefHeight(250);
+
+        Scene scene = new Scene(root, 900, 700);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Village Simulation");
         primaryStage.show();
@@ -94,38 +116,98 @@ public class MainApp extends Application {
         EventDispatcher dispatcher = new EventDispatcher();
 
         dispatcher.registerListener(event -> Platform.runLater(() -> {
-            if (event.getType() == VillagerEventType.DAY_PASSED) {
-                dayCounter++;
-                int aliveCount = event.getValue();
-                XYChart.Data<Number, Number> point = new XYChart.Data<>(dayCounter, aliveCount);
-                point.nodeProperty().addListener((obs, oldNode, newNode) -> {
-                    if (newNode != null) {
-                        newNode.setStyle(
-                                "-fx-background-color: E66E1DFF; " + // заливка
-                                "-fx-background-radius: 2px; " +   // радиус кружка
-                                "-fx-padding: 2px;"             // размер (чем меньше padding, тем меньше точка)
+            switch (event.getType()) {
+                case DAY_PASSED -> {
+                    dayCounter++;
+                    int aliveCount = event.getValue();
+                    XYChart.Data<Number, Number> point = new XYChart.Data<>(dayCounter, aliveCount);
+                    point.nodeProperty().addListener((obs, oldNode, newNode) -> {
+                        if (newNode != null) {
+                            newNode.setStyle(
+                                    "-fx-background-color: E66E1DFF; " + // заливка
+                                            "-fx-background-radius: 2px; " +   // радиус кружка
+                                            "-fx-padding: 2px;"             // размер (чем меньше padding, тем меньше точка)
 
-                        );
+                            );
+                        }
+                    });
+
+                    populationSeries.getData().add(point);
+
+                    // обновляем дерево раз в день
+                    if (rootVillager != null) {
+                        drawGenealogy(genealogyPane, rootVillager);
                     }
-                });
+                }
 
-                populationSeries.getData().add(point);
+                case BIRTH, FOOD_FOUND -> {
+                    VillagerData data = new VillagerData(
+                            event.getVillager().getId(),
+                            event.getVillager().getAge(),
+                            event.getVillager().isAlive() ? "Alive" : "Dead"
+                    );
+                    villagerMap.put(data.getId(), data);
+                    villagerList.removeIf(v -> v.getId() == data.getId());
+                    villagerList.add(data);
 
-            } else {
-                VillagerData data = new VillagerData(
-                        event.getVillager().getId(),
-                        event.getVillager().getAge(),
-                        event.getVillager().isAlive() ? "Alive" : "Dead"
-                );
-
-                villagerList.removeIf(v -> v.getId() == data.getId());
-                villagerList.add(data);
+                    if (event.getVillager().getParentId() != null) {
+                        VillagerData parent = villagerMap.get(event.getVillager().getParentId());
+                        if (parent != null) {
+                            parent.addChild(data);
+                        }
+                    } else {
+                        rootVillager = data;
+                    }
+                    drawGenealogy(genealogyPane, rootVillager);
+                }
+                case DEATH -> {
+                    var villager = event.getVillager();
+                    VillagerData data = villagerMap.get(villager.getId());
+                    if (data != null) {
+                        data.setStatus("Dead");
+                    }
+                    drawGenealogy(genealogyPane, rootVillager);
+                }
             }
+
 
         }));
 
         VillageSimulator simulator = new VillageSimulator(dispatcher);
         new Thread(simulator::start).start();
+    }
+
+    private void drawGenealogy(Pane pane, VillagerData root) {
+        pane.getChildren().clear();
+        drawVillager(pane, root, 250, 20, 200);
+    }
+
+    private void drawVillager(Pane pane, VillagerData villager, double x, double y, double spacing) {
+        Label label = new Label("Житель " + villager.getId());
+        label.setStyle(villager.getStatus().equals("Alive")
+                ? "-fx-background-color: lightgreen; -fx-border-color: black; -fx-padding: 3;"
+                : "-fx-background-color: lightgray; -fx-border-color: black; -fx-padding: 3;");
+        label.setLayoutX(x);
+        label.setLayoutY(y);
+
+        pane.getChildren().add(label);
+
+        List<VillagerData> children = villager.getChildren();
+        if (children != null && !children.isEmpty()) {
+            double childX = x - (children.size() - 1) * spacing / 2;
+            double childY = y + 80;
+
+            for (VillagerData child : children) {
+                javafx.scene.shape.Line line = new javafx.scene.shape.Line(
+                        x + 30, y + 20,
+                        childX + 30, childY
+                );
+                pane.getChildren().add(line);
+
+                drawVillager(pane, child, childX, childY, spacing / 1.5);
+                childX += spacing;
+            }
+        }
     }
 
     public static void main(String[] args) {

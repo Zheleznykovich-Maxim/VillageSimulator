@@ -22,9 +22,8 @@ public class VillageSimulator {
     }
 
     public void start() {
-        Villager starter = new Villager(executor, dispatcher);
+        Villager starter = new Villager(null, executor, dispatcher);
         executor.submit(starter);
-
         for (int day = 1; day <= 100; day++) {
             System.out.println("--- День " + day + " ---");
             int villagersSize = countAliveVillagers(starter);

@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 public class Villager implements Runnable {
     private static int counter = 1;
     private final int id;
+    private final Integer parentId;
     private int age;
     private int health;
     private int food;
@@ -24,8 +25,9 @@ public class Villager implements Runnable {
     private final ExecutorService executor;
     private final EventDispatcher dispatcher;
 
-    public Villager(ExecutorService executor, EventDispatcher dispatcher) {
+    public Villager(Integer parentId, ExecutorService executor, EventDispatcher dispatcher) {
         this.id = counter++;
+        this.parentId = parentId;
         this.age = 0;
         this.health = 100;
         this.food = 50;
@@ -82,7 +84,7 @@ public class Villager implements Runnable {
         }
 
         if (canReproduce()) {
-            Villager child = new Villager(executor, dispatcher);
+            Villager child = new Villager(id, executor, dispatcher);
             population.add(child);
             executor.submit(child);
             System.out.println("У жителя " + id + " родился новый житель!");
