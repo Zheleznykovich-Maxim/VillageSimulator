@@ -9,8 +9,8 @@ import java.util.List;
 @Getter
 @Setter
 public class VillagerData {
-    private final int id;
-    private final int age;
+    private int id;
+    private int age;
     private String status;
     private final List<VillagerData> children = new ArrayList<>();
 

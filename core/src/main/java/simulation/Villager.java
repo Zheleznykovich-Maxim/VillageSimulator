@@ -66,7 +66,7 @@ public class Villager implements Runnable {
         if (food <= 0) {
             health -= 20;
         } else {
-            food -= 10;
+            food -= 5;
             health = Math.min(100, health + 5);
         }
 

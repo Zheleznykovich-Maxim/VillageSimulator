@@ -9,18 +9,17 @@ import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
-import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import org.example.javafxui.genealogy.GenealogyView;
 import simulation.VillageSimulator;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class MainApp extends Application {
@@ -29,13 +28,14 @@ public class MainApp extends Application {
     private XYChart.Series<Number, Number> populationSeries = new XYChart.Series<>();
     private int dayCounter = 0;
 
-    private Pane genealogyPane;
+    private GenealogyView genealogyView;
     private VillagerData rootVillager;
-    private Map<Integer, VillagerData> villagerMap = new HashMap<>(); // по id
+    private final Map<Integer, VillagerData> villagerMap = new HashMap<>(); // по id
 
     @Override
     public void start(Stage primaryStage) {
 
+        // таблица жителей
         TableView<VillagerData> tableView = new TableView<>(villagerList);
 
         TableColumn<VillagerData, Integer> idColumn = new TableColumn<>("ID");
@@ -48,23 +48,21 @@ public class MainApp extends Application {
         statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
 
         tableView.getColumns().addAll(idColumn, ageColumn, statusColumn);
+        tableView.setPrefWidth(350);
 
+        // график
         NumberAxis xAxis = new NumberAxis();
         xAxis.setLabel("Day");
         xAxis.setMinorTickCount(0);
+        xAxis.setForceZeroInRange(false);
         xAxis.setTickLabelFormatter(new NumberAxis.DefaultFormatter(xAxis) {
             @Override
             public String toString(Number object) {
-                double value = object.doubleValue();
-                if (value == Math.floor(value)) {
-                    return String.valueOf((int) value); // целое → выводим
-                } else {
-                    return ""; // дробное → скрываем
-                }
+                double v = object.doubleValue();
+                return v == Math.floor(v) ? String.valueOf((int) v) : "";
             }
         });
         xAxis.setLabel("Day");
-        xAxis.setForceZeroInRange(false);
 
         NumberAxis yAxis = new NumberAxis();
         yAxis.setLabel("Alive Villagers");
@@ -74,45 +72,43 @@ public class MainApp extends Application {
         yAxis.setTickLabelFormatter(new NumberAxis.DefaultFormatter(yAxis) {
             @Override
             public String toString(Number object) {
-                double value = object.doubleValue();
-                if (value == Math.floor(value)) {
-                    return String.valueOf((int) value); // целое → выводим
-                } else {
-                    return ""; // дробное → скрываем
-                }
+                double v = object.doubleValue();
+                return v == Math.floor(v) ? String.valueOf((int) v) : "";
             }
         });
 
         LineChart<Number, Number> lineChart = new LineChart<>(xAxis, yAxis);
         lineChart.getData().add(populationSeries);
         lineChart.lookup(".chart-series-line").setStyle("-fx-stroke-width: 2px;");
+        lineChart.setPrefHeight(250);
         populationSeries.setName("Population");
 
-        BorderPane root = new BorderPane();
+        // родовое дерево
+        genealogyView = new GenealogyView();
+
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(genealogyView);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setFitToHeight(true);
 
         SplitPane splitPane = new SplitPane();
-        tableView.setPrefWidth(350);
+        splitPane.getItems().addAll(tableView, scrollPane);
+        splitPane.setDividerPositions(0.3); // 30% слева, 70% справ
 
-        genealogyPane = new Pane();
-        genealogyPane.setPrefWidth(550);
-
-        // добавляем в SplitPane
-        splitPane.getItems().addAll(tableView, genealogyPane);
-        splitPane.setDividerPositions(0.3); // 30% слева, 70% справа
-
+        BorderPane root = new BorderPane();
         root.setCenter(splitPane);
         root.setBottom(lineChart);
-        lineChart.setPrefHeight(250);
+
 
         Scene scene = new Scene(root, 900, 700);
         primaryStage.setScene(scene);
         primaryStage.setTitle("Village Simulation");
         primaryStage.show();
 
-        startsSimulation();
+        startSimulation();
     }
 
-    private void startsSimulation() {
+    private void startSimulation() {
         EventDispatcher dispatcher = new EventDispatcher();
 
         dispatcher.registerListener(event -> Platform.runLater(() -> {
@@ -124,10 +120,9 @@ public class MainApp extends Application {
                     point.nodeProperty().addListener((obs, oldNode, newNode) -> {
                         if (newNode != null) {
                             newNode.setStyle(
-                                    "-fx-background-color: E66E1DFF; " + // заливка
-                                            "-fx-background-radius: 2px; " +   // радиус кружка
-                                            "-fx-padding: 2px;"             // размер (чем меньше padding, тем меньше точка)
-
+                                    "-fx-background-color: E66E1DFF;" +
+                                            "-fx-background-radius: 2px;" +
+                                            "-fx-padding: 2px;"
                             );
                         }
                     });
@@ -136,78 +131,53 @@ public class MainApp extends Application {
 
                     // обновляем дерево раз в день
                     if (rootVillager != null) {
-                        drawGenealogy(genealogyPane, rootVillager);
+                        genealogyView.update(rootVillager);
                     }
                 }
 
                 case BIRTH, FOOD_FOUND -> {
-                    VillagerData data = new VillagerData(
-                            event.getVillager().getId(),
-                            event.getVillager().getAge(),
-                            event.getVillager().isAlive() ? "Alive" : "Dead"
+                    var villagerCore = event.getVillager();
+
+                    VillagerData data = villagerMap.computeIfAbsent(
+                            villagerCore.getId(),
+                            id -> new VillagerData(
+                                    id,
+                                    villagerCore.getAge(),
+                                    villagerCore.isAlive() ? "Alive" : "Dead"
+                            )
                     );
-                    villagerMap.put(data.getId(), data);
+
+                    data.setAge(villagerCore.getAge());
+                    data.setStatus(villagerCore.isAlive() ? "Alive" : "Dead");
+
                     villagerList.removeIf(v -> v.getId() == data.getId());
                     villagerList.add(data);
 
-                    if (event.getVillager().getParentId() != null) {
-                        VillagerData parent = villagerMap.get(event.getVillager().getParentId());
-                        if (parent != null) {
+                    if (villagerCore.getParentId() != null) {
+                        VillagerData parent = villagerMap.get(villagerCore.getParentId());
+                        if (parent != null && !parent.getChildren().contains(data)) {
                             parent.addChild(data);
                         }
-                    } else {
-                        rootVillager = data;
+                    } else if (rootVillager == null) {
+                        rootVillager = data; // первый без родителя становится корнем
                     }
-                    drawGenealogy(genealogyPane, rootVillager);
+
+                    genealogyView.update(rootVillager);
                 }
+
                 case DEATH -> {
                     var villager = event.getVillager();
                     VillagerData data = villagerMap.get(villager.getId());
                     if (data != null) {
                         data.setStatus("Dead");
                     }
-                    drawGenealogy(genealogyPane, rootVillager);
+                    genealogyView.update(rootVillager);
                 }
             }
-
-
         }));
 
         VillageSimulator simulator = new VillageSimulator(dispatcher);
         new Thread(simulator::start).start();
-    }
-
-    private void drawGenealogy(Pane pane, VillagerData root) {
-        pane.getChildren().clear();
-        drawVillager(pane, root, 250, 20, 200);
-    }
-
-    private void drawVillager(Pane pane, VillagerData villager, double x, double y, double spacing) {
-        Label label = new Label("Житель " + villager.getId());
-        label.setStyle(villager.getStatus().equals("Alive")
-                ? "-fx-background-color: lightgreen; -fx-border-color: black; -fx-padding: 3;"
-                : "-fx-background-color: lightgray; -fx-border-color: black; -fx-padding: 3;");
-        label.setLayoutX(x);
-        label.setLayoutY(y);
-
-        pane.getChildren().add(label);
-
-        List<VillagerData> children = villager.getChildren();
-        if (children != null && !children.isEmpty()) {
-            double childX = x - (children.size() - 1) * spacing / 2;
-            double childY = y + 80;
-
-            for (VillagerData child : children) {
-                javafx.scene.shape.Line line = new javafx.scene.shape.Line(
-                        x + 30, y + 20,
-                        childX + 30, childY
-                );
-                pane.getChildren().add(line);
-
-                drawVillager(pane, child, childX, childY, spacing / 1.5);
-                childX += spacing;
-            }
-        }
     }
 
     public static void main(String[] args) {
