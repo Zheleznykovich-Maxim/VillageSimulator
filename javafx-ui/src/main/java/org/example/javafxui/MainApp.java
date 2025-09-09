@@ -17,10 +17,12 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import org.example.javafxui.genealogy.GenealogyView;
+import org.example.javafxui.rest.SimulationRestClient;
 import simulation.VillageSimulator;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class MainApp extends Application {
 
@@ -31,9 +33,10 @@ public class MainApp extends Application {
     private GenealogyView genealogyView;
     private VillagerData rootVillager;
     private final Map<Integer, VillagerData> villagerMap = new HashMap<>(); // по id
+    private SimulationRestClient restClient = new SimulationRestClient("http://localhost:8080");
 
     @Override
-    public void start(Stage primaryStage) {
+    public void start(Stage primaryStage) throws InterruptedException {
 
         // таблица жителей
         TableView<VillagerData> tableView = new TableView<>(villagerList);
@@ -106,9 +109,10 @@ public class MainApp extends Application {
         primaryStage.show();
 
         startSimulation();
+
     }
 
-    private void startSimulation() {
+    private void startSimulation() throws InterruptedException {
         EventDispatcher dispatcher = new EventDispatcher();
 
         dispatcher.registerListener(event -> Platform.runLater(() -> {
@@ -116,6 +120,8 @@ public class MainApp extends Application {
                 case DAY_PASSED -> {
                     dayCounter++;
                     int aliveCount = event.getValue();
+
+
                     XYChart.Data<Number, Number> point = new XYChart.Data<>(dayCounter, aliveCount);
                     point.nodeProperty().addListener((obs, oldNode, newNode) -> {
                         if (newNode != null) {
@@ -177,7 +183,12 @@ public class MainApp extends Application {
         }));
 
         VillageSimulator simulator = new VillageSimulator(dispatcher);
-        new Thread(simulator::start).start();
+
+        CompletableFuture.runAsync(simulator::start).thenRun(() -> {
+            int aliveVillagers = (int) villagerList.stream().filter(v -> v.getStatus().getValue().equals("Alive")).count();
+            // Отправляем запрос в Spring Boot модуль
+            restClient.sendUpdate(dayCounter, villagerList.size(), aliveVillagers);
+        });
     }
 
     public static void main(String[] args) {

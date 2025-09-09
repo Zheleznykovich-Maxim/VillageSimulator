@@ -7,7 +7,11 @@ module org.example.javafxui {
     requires org.kordamp.bootstrapfx.core;
     requires static lombok;
     requires core;
+    requires spring.web;
+    requires common.simulation;
 
     opens org.example.javafxui to javafx.fxml;
     exports org.example.javafxui;
+    exports org.example.javafxui.rest;
+
 }

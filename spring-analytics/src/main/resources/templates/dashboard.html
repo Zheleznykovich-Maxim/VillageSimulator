@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Simulation Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1>Simulation Dashboard</h1>
+
+<canvas id="survivalChart" width="800" height="400"></canvas>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const simulations = /*[[${simulations}]]*/ [];
+    const labels = simulations.map(s => s.simulationId);
+    const survivalRates = simulations.map(s => s.aliveVillagers / s.totalVillagers * 100);
+
+    const ctx = document.getElementById('survivalChart').getContext('2d');
+    const chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Survival Rate (%)',
+                data: survivalRates,
+                backgroundColor: 'rgba(54, 162, 235, 0.7)'
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true, max: 100 }
+            }
+        }
+    });
+    /*]]>*/
+</script>
+</body>
+</html>
