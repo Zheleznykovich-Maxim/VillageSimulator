@@ -42,10 +42,10 @@ public class MainApp extends Application {
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
 
         TableColumn<VillagerData, Integer> ageColumn = new TableColumn<>("Age");
-        ageColumn.setCellValueFactory(new PropertyValueFactory<>("age"));
+        ageColumn.setCellValueFactory(cellData -> cellData.getValue().getAge().asObject());
 
         TableColumn<VillagerData, String> statusColumn = new TableColumn<>("Status");
-        statusColumn.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusColumn.setCellValueFactory(cellData -> cellData.getValue().getStatus());
 
         tableView.getColumns().addAll(idColumn, ageColumn, statusColumn);
         tableView.setPrefWidth(350);

@@ -26,5 +26,19 @@ public class GenealogyTree {
     public TreeNode getRootNode() {
         return root;
     }
+    public double getContentHeight() {
+        return root.getMaxY() + 40; // +40 запас (линии и отступ снизу)
+    }
+    public int getNodeCount() {
+        return countNodes(root);
+    }
+
+    private int countNodes(TreeNode node) {
+        int count = 1; // текущая нода
+        for (TreeNode c : node.children) {
+            count += countNodes(c);
+        }
+        return count;
+    }
 
 }

@@ -66,12 +66,12 @@ public class Villager implements Runnable {
         if (food <= 0) {
             health -= 20;
         } else {
-            food -= 5;
+            food -= 10;
             health = Math.min(100, health + 5);
         }
 
         if (random.nextBoolean()) {
-            int foundFood =random.nextInt(30);
+            int foundFood =random.nextInt(35);
             food += foundFood;
             System.out.println("Житель " + id + " нашёл " + foundFood + " еды");
             dispatcher.dispath(new VillagerEvent(this, VillagerEventType.FOOD_FOUND, foundFood));

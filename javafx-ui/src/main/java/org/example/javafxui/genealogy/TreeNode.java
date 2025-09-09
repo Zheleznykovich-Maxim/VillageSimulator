@@ -21,4 +21,12 @@ public class TreeNode {
         return new TreeNode(d,
                 d.getChildren().stream().map(TreeNode::build).collect(Collectors.toList()));
     }
+    public double getMaxY() {
+        double max = y + nodeH; // нижняя граница текущей ноды
+        for (TreeNode c : children) {
+            max = Math.max(max, c.getMaxY());
+        }
+        return max;
+    }
+
 }
