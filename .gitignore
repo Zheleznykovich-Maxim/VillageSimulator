@@ -30,4 +30,4 @@ bin/
 /.idea/
 /core/target/
 /javafx-ui/target/
-/.idea/
+/common-simulation/target/

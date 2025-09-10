@@ -1,38 +1,194 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" lang="">
 <head>
+    <meta charset="UTF-8">
     <title>Simulation Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2, h3 {
+            text-align: center;
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 700px;
+            height: 400px; /* <-- фиксированная высота */
+            margin: 100px auto;
+        }
+
+        canvas {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        /* Сетка для отдельных диаграмм */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            justify-items: center;
+            margin-top: 30px;
+        }
+        .grid-item {
+            width: 150px;
+            height: 150px;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 60px;
+            justify-items: center; /* центрирует элементы по горизонтали */
+        }
+
+        .grid-item {
+            width: 180px;  /* фиксированная ширина для canvas */
+            height: 180px; /* фиксированная высота для canvas */
+        }
+
+    </style>
 </head>
 <body>
 <h1>Simulation Dashboard</h1>
 
-<canvas id="survivalChart" width="800" height="400"></canvas>
+<!-- 1. Столбчатая диаграмма с населением -->
+<div class="chart-container">
+    <h2>Общее количество жителей</h2>
+    <canvas id="populationChart"></canvas>
+</div>
+
+<!-- 2. Общая круговая диаграмма смертности -->
+<div class="chart-container">
+    <h2>Общая смертность по всем симуляциям</h2>
+    <canvas id="overallMortalityChart"></canvas>
+</div>
+
+<!-- 3. Диаграмма смертности по каждой симуляции в виде сетки -->
+<div class="chart-container">
+    <h2>Смертность по симуляциям</h2>
+    <div class="grid-container">
+        <div th:each="sim : ${simulations}" class="grid-item">
+            <h3>Симуляция [[${sim.simulationId}]]</h3>
+            <canvas th:attr="id='mortalityChart-' + ${sim.simulationId}"></canvas>
+        </div>
+    </div>
+</div>
+
 
 <script th:inline="javascript">
     /*<![CDATA[*/
     const simulations = /*[[${simulations}]]*/ [];
-    const labels = simulations.map(s => s.simulationId);
-    const survivalRates = simulations.map(s => s.aliveVillagers / s.totalVillagers * 100);
 
-    const ctx = document.getElementById('survivalChart').getContext('2d');
-    const chart = new Chart(ctx, {
+    const populationCtx = document.getElementById('populationChart').getContext('2d');
+
+    new Chart(populationCtx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: simulations.map(s => s.simulationId), // метки для столбиков
             datasets: [{
-                label: 'Survival Rate (%)',
-                data: survivalRates,
-                backgroundColor: 'rgba(54, 162, 235, 0.7)'
+                label: 'Количество жителей',
+                data: simulations.map(s => s.totalVillagers),
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
             }]
         },
         options: {
+            indexAxis: 'x', // вертикальные столбики
+            responsive: true,
+            maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, max: 100 }
+                x: {
+                    title: { display: true, text: 'Симуляции' },
+                    ticks: { autoSkip: false }
+                },
+                y: {
+                    title: { display: true, text: 'Количество жителей' },
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'end',
+                    formatter: (value, context) => {
+                        // подписываем столбик как "Sim <id>\nдни: <days>"
+                        const sim = simulations[context.dataIndex];
+                        return `${sim.daysElapsed} дн.`;
+                    },
+                    font: { weight: 'bold' }
+                }
+            }
+        },
+        plugins: [ChartDataLabels]
+    });
+
+
+
+    // --- 2. Общая круговая диаграмма смертности ---
+    const totalAlive = simulations.reduce((sum, s) => sum + s.aliveVillagers, 0);
+    const totalDead = simulations.reduce((sum, s) => sum + (s.totalVillagers - s.aliveVillagers), 0);
+    const overallCtx = document.getElementById('overallMortalityChart').getContext('2d');
+    new Chart(overallCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Выжившие', 'Погибшие'],
+            datasets: [{
+                data: [totalAlive, totalDead],
+                backgroundColor: ['#4CAF50', '#F44336']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            devicePixelRatio: window.devicePixelRatio || 1,
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let value = context.raw;
+                            let total = totalAlive + totalDead;
+                            let percent = total === 0 ? 0 : (value / total * 100).toFixed(1);
+                            return context.label + ": " + value + " (" + percent + "%)";
+                        }
+                    }
+                },
+                legend: { position: 'bottom' }
             }
         }
     });
+
+    // --- 3. Круговые диаграммы для каждой симуляции ---
+    simulations.forEach(sim => {
+        const ctx = document.getElementById('mortalityChart-' + sim.simulationId).getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Выжившие', 'Погибшие'],
+                datasets: [{
+                    data: [sim.aliveVillagers, sim.totalVillagers - sim.aliveVillagers],
+                    backgroundColor: ['#4CAF50', '#F44336']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                devicePixelRatio: window.devicePixelRatio || 1,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    });
     /*]]>*/
 </script>
+
 </body>
 </html>
