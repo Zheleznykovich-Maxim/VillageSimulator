@@ -21,5 +21,4 @@ public class SimulationStats {
     public double getSurvivalRate() {
         return totalVillagers == 0 ? 0.0 : (aliveVillagers * 100.0) / totalVillagers;
     }
-
 }

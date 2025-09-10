@@ -32,7 +32,7 @@ public class GenealogyView extends ScrollPane {
         tree.layout();
 
         if (tree.getNodeCount() < 10) {
-            double centerX = getWidth() / 2.0;                 // ширина видимой области ScrollPane
+            double centerX = getWidth() / 2.0;
             double treeWidth = tree.getContentWidth();
             offsetX = centerX - (treeWidth / 2.0);
         } else {

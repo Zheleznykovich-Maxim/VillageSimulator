@@ -27,6 +27,6 @@ public class VillagerData {
     public void addChild(VillagerData child) {
         children.add(child);
     }
-    public void setAge(int value) { age.set(value); }   // <-- здесь нет ошибки
-    public void setStatus(String value) { status.set(value); } // <-- тоже нет ошибки
+    public void setAge(int value) { age.set(value); }
+    public void setStatus(String value) { status.set(value); }
 }
